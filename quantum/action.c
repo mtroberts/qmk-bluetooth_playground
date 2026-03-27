@@ -253,6 +253,14 @@ void process_record(keyrecord_t *record) {
     if (IS_NOEVENT(record->event)) {
         return;
     }
+#ifdef SPECULATIVE_HOLD
+    if (record->event.pressed) {
+        speculative_key_settled(record);
+    }
+#endif // SPECULATIVE_HOLD
+#ifdef FLOW_TAP_TERM
+    flow_tap_update_last_event(record);
+#endif // FLOW_TAP_TERM
 
     if (!process_record_quantum(record)) {
 #ifndef NO_ACTION_ONESHOT
@@ -1138,6 +1146,21 @@ bool is_tap_action(action_t action) {
             return false;
     }
     return false;
+}
+
+uint16_t get_tap_keycode(uint16_t keycode) {
+    switch (keycode) {
+        case QK_MOD_TAP ... QK_MOD_TAP_MAX:
+            return QK_MOD_TAP_GET_TAP_KEYCODE(keycode);
+        case QK_LAYER_TAP ... QK_LAYER_TAP_MAX:
+            return QK_LAYER_TAP_GET_TAP_KEYCODE(keycode);
+        case QK_SWAP_HANDS ... QK_SWAP_HANDS_MAX:
+            if (!IS_SWAP_HANDS_KEYCODE(keycode)) {
+                return QK_SWAP_HANDS_GET_TAP_KEYCODE(keycode);
+            }
+            break;
+    }
+    return keycode;
 }
 
 /** \brief Debug print (FIXME: Needs better description)
