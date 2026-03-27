@@ -60,38 +60,23 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 };
 
 #ifdef CHORDAL_HOLD
-// Chordal Hold hand assignment for the K1 Pro ISO RGB matrix (6 rows x 17 cols).
-//
-//   'L' = left hand     'R' = right hand
-//   '*' = always hold   (modifiers, thumb cluster, and unused matrix positions)
-//
-// Adjust this table if you remap keys to non-standard positions.
-//
-// For alpha and common typing keys, return false so the combo is treated as
-// a tap (resolved on the other key's release). Deliberate shortcuts still
-// work: hold the mod past TAPPING_TERM alone, then press the key.
-// Chordal Hold fires immediately (true) only for navigation, function, etc.
-bool get_chordal_hold(uint16_t tap_hold_keycode, keyrecord_t *tap_hold_record, uint16_t other_keycode, keyrecord_t *other_record) {
-    switch (get_tap_keycode(other_keycode)) {
-        case KC_A ... KC_Z:
-        case KC_1 ... KC_9:
-        case KC_0:
-        case KC_SPC:
-        case KC_COMM:
-        case KC_DOT:
-        case KC_SCLN:
-        case KC_QUOT:
-        case KC_SLSH:
-        case KC_LBRC:
-        case KC_RBRC:
-        case KC_NUHS:
-        case KC_NUBS:
-        case KC_GRV:
-        case KC_MINS:
-        case KC_EQL:
-            return false;
+
+// Ultra-fast opposite-hand roll → force tap (fixes first-two-character misfires)
+bool get_chordal_hold(uint16_t tap_hold_keycode, keyrecord_t* tap_hold_record,
+                      uint16_t other_keycode, keyrecord_t* other_record) {
+    // Default chordal logic: same-hand = tap, opposite-hands = allow PERMISSIVE_HOLD
+    bool default_allows_hold = get_chordal_hold_default(tap_hold_record, other_record);
+
+    // Only override on opposite-hand cases
+    if (default_allows_hold) {
+        uint16_t delta = TIMER_DIFF_16(other_record->event.time, tap_hold_record->event.time);
+
+        if (delta < 120) {          // ← tune this (60–120 ms range is typical)
+            return false;          // force tap (what you asked for)
+        }
     }
-    return get_chordal_hold_default(tap_hold_record, other_record);
+
+    return default_allows_hold;    // normal chordal + permissive behavior otherwise
 }
 
 // clang-format off
